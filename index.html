@@ -60,6 +60,34 @@
 <script>
 let peer = null;
 let localStream = null;
+let watchTimer = null;
+
+/* STUN + бесплатные TURN-релеи: повышают шанс соединения между разными сетями */
+const PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ],
+    iceTransportPolicy: 'all',
+    iceCandidatePoolSize: 10
+  }
+};
+
+/* Показываем реальное состояние ICE-соединения */
+function watchIce(pc, el){
+  if (!pc) return;
+  pc.oniceconnectionstatechange = ()=>{
+    const st = pc.iceConnectionState;
+    if (st === 'checking') setStatus(el, '⏳ Устанавливаем соединение (проверка сети)...', 'wait');
+    else if (st === 'connected' || st === 'completed') setStatus(el, '✅ Соединение установлено!', 'ok');
+    else if (st === 'failed') setStatus(el, '⚠️ Сеть не позволяет прямое соединение. Попробуйте: оба через мобильный интернет (не Wi-Fi), затем обновите страницы и повторите.', 'err');
+    else if (st === 'disconnected') setStatus(el, '⏳ Соединение прервано, переподключаемся...', 'wait');
+  };
+}
 
 function show(id){ document.getElementById(id).classList.remove('hidden'); }
 function setStatus(el, text, cls){
@@ -88,15 +116,16 @@ async function startStream(){
 function createStreamerPeer(){
   const code = String(Math.floor(1000 + Math.random()*9000));
   setStatus('sStatus', '⏳ Создаём комнату...', 'wait');
-  peer = new Peer('camlink-' + code);
+  peer = new Peer('camlink-' + code, PEER_CONFIG);
 
   peer.on('open', ()=>{
     document.getElementById('roomCode').textContent = code;
-    setStatus('sStatus', '⏳ Код готов! Ждём зрителя... Страницу не закрывайте.', 'wait');
+    setStatus('sStatus', '⏳ Код готов! Ждём зрителя... Страницу не закрывайте, экран не выключайте.', 'wait');
   });
 
   peer.on('call', (call)=>{
     call.answer(localStream);
+    watchIce(call.peerConnection, 'sStatus');
     setStatus('sStatus', '✅ Зритель подключился! Вы в эфире.', 'ok');
     call.on('close', ()=> setStatus('sStatus', '⏳ Зритель отключился. Ждём снова...', 'wait'));
   });
@@ -120,12 +149,22 @@ function connectWatch(){
   if (!/^\d{4}$/.test(code)){ alert('Введите 4-значный код, например 4821'); return; }
 
   if (peer){ peer.destroy(); peer = null; }
+  if (watchTimer){ clearTimeout(watchTimer); watchTimer = null; }
   setStatus('wStatus', '⏳ Подключаемся... Страницу не закрывайте.', 'wait');
 
-  peer = new Peer();
+  peer = new Peer(PEER_CONFIG);
   peer.on('open', ()=>{
     const call = peer.call('camlink-' + code);
+    watchIce(call.peerConnection, 'wStatus');
+    // Таймаут: если за 35 секунд нет видео — честная ошибка вместо вечного ожидания
+    watchTimer = setTimeout(()=>{
+      const v = document.getElementById('remoteVideo');
+      if (!v.srcObject){
+        setStatus('wStatus', '⚠️ За 35 секунд соединение не установилось. Убедитесь, что у друга страница открыта и экран включён, затем нажмите «Подключиться» ещё раз.', 'err');
+      }
+    }, 35000);
     call.on('stream', (remote)=>{
+      if (watchTimer){ clearTimeout(watchTimer); watchTimer = null; }
       document.getElementById('remoteVideo').srcObject = remote;
       setStatus('wStatus', '✅ Соединение установлено! Вы видите друга.', 'ok');
     });
