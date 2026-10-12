@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Видео по ссылке</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+  body { background: #0f1420; color: #e8ecf4; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  p.sub { color: #8b94a7; font-size: 14px; margin-bottom: 20px; text-align: center; }
+  .card { background: #1a2233; border: 1px solid #2a3650; border-radius: 14px; padding: 20px; width: 100%; max-width: 560px; margin-bottom: 16px; }
+  button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+  button.primary { background: #3b82f6; color: #fff; }
+  button.primary:hover { background: #2f6fd6; }
+  button.ghost { background: #2a3650; color: #e8ecf4; }
+  button.ghost:hover { background: #35446a; }
+  video { width: 100%; border-radius: 10px; background: #000; margin-top: 12px; }
+  textarea { width: 100%; min-height: 90px; background: #0f1420; color: #9fe8a9; border: 1px solid #2a3650; border-radius: 10px; padding: 10px; font-family: monospace; font-size: 12px; resize: vertical; margin-top: 8px; }
+  label { font-size: 13px; color: #8b94a7; display: block; margin-top: 14px; }
+  .step { font-size: 14px; line-height: 1.5; margin-bottom: 6px; }
+  .step b { color: #9fc1ff; }
+  #status { margin-top: 12px; padding: 10px; border-radius: 10px; text-align: center; font-size: 14px; background: #2a3650; }
+  #status.ok { background: #14532d; color: #86efac; }
+  #status.wait { background: #422006; color: #fcd34d; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>📹 Видео по ссылке (WebRTC, без сервера)</h1>
+<p class="sub">Прямое соединение между двумя браузерами. Коды обмениваются через любой мессенджер.</p>
+
+<div class="card" id="menu">
+  <div class="step"><b>Кто вы?</b></div>
+  <button class="primary" onclick="startStream()">📱 Я ПОКАЗЫВАЮ — включить камеру и отправить видео</button>
+  <button class="ghost" onclick="startWatch()">🖥️ Я СМОТРЮ — принять видео от друга</button>
+</div>
+
+<!-- ============ ЭКРАН ТОГО, КТО ПОКАЗЫВАЕТ ============ -->
+<div class="card hidden" id="streamer">
+  <div class="step"><b>Шаг 1.</b> Камера включена. Скопируйте код ниже и отправьте тому, кто будет смотреть.</div>
+  <textarea id="offerOut" readonly placeholder="Создаётся код, подождите..."></textarea>
+  <button class="ghost" onclick="copyText('offerOut')">📋 Скопировать код</button>
+
+  <div class="step" style="margin-top:16px"><b>Шаг 2.</b> Вставьте сюда код ОТВЕТА, который пришлёт зритель, и нажмите «Подключить».</div>
+  <textarea id="answerIn" placeholder="Вставьте сюда код ответа..."></textarea>
+  <button class="primary" onclick="acceptAnswer()">🔌 Подключить</button>
+
+  <div id="status" class="wait hidden"></div>
+  <video id="localVideo" autoplay muted playsinline></video>
+</div>
+
+<!-- ============ ЭКРАН ТОГО, КТО СМОТРИТ ============ -->
+<div class="card hidden" id="watcher">
+  <div class="step"><b>Шаг 1.</b> Вставьте код, который прислал показывающий, и нажмите «Принять».</div>
+  <textarea id="offerIn" placeholder="Вставьте сюда код от друга..."></textarea>
+  <button class="primary" onclick="acceptOffer()">📥 Принять</button>
+
+  <div class="step hidden" id="answerBlock"><b>Шаг 2.</b> Скопируйте код ответа ниже и отправьте его обратно показывающему.</div>
+  <textarea id="answerOut" readonly class="hidden"></textarea>
+  <button class="ghost hidden" id="copyAnswerBtn" onclick="copyText('answerOut')">📋 Скопировать ответ</button>
+
+  <div id="watchStatus" class="wait hidden"></div>
+  <video id="remoteVideo" autoplay playsinline></video>
+</div>
+
+<script>
+const STUN = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
+let pc = null;
+
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function setStatus(el, text, cls){
+  const s = document.getElementById(el);
+  s.classList.remove('hidden'); s.className = cls; s.textContent = text;
+}
+function waitIceComplete(pc){
+  return new Promise(resolve=>{
+    if (pc.iceGatheringState === 'complete') return resolve();
+    const t = setTimeout(resolve, 10000);
+    pc.addEventListener('icegatheringstatechange', ()=>{
+      if (pc.iceGatheringState === 'complete'){ clearTimeout(t); resolve(); }
+    });
+  });
+}
+function enc(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+function dec(str){ return JSON.parse(decodeURIComponent(escape(atob(str.trim())))); }
+function copyText(id){
+  const ta = document.getElementById(id);
+  ta.select(); ta.setSelectionRange(0, 999999);
+  navigator.clipboard.writeText(ta.value).then(()=>alert('Скопировано! Отправьте его в мессенджере.'));
+}
+
+/* ---------- ТОТ, КТО ПОКАЗЫВАЕТ (друг со смартфоном) ---------- */
+async function startStream(){
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('localVideo').srcObject = stream;
+
+    pc = new RTCPeerConnection({ iceServers: STUN });
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIceComplete(pc);
+    document.getElementById('offerOut').value = enc(pc.localDescription);
+
+    pc.oniceconnectionstatechange = ()=>{
+      const st = pc.iceConnectionState;
+      if (st === 'connected' || st === 'completed')
+        setStatus('status', '✅ Соединение установлено! Зритель видит вас.', 'ok');
+      else if (st === 'failed' || st === 'disconnected')
+        setStatus('status', '⚠️ Соединение прервано. Обновите страницу и попробуйте заново.', 'wait');
+    };
+
+    show('streamer'); document.getElementById('menu').style.display = 'none';
+  } catch(e){
+    alert('Не удалось включить камеру: ' + e.message + '\n\nОткройте страницу по HTTPS (или localhost) и разрешите доступ к камере.');
+  }
+}
+
+async function acceptAnswer(){
+  try {
+    const answer = dec(document.getElementById('answerIn').value);
+    await pc.setRemoteDescription(answer);
+    setStatus('status', '⏳ Подключаемся к зрителю...', 'wait');
+  } catch(e){ alert('Неверный код ответа: ' + e.message); }
+}
+
+/* ---------- ТОТ, КТО СМОТРИТ (вы) ---------- */
+async function acceptOffer(){
+  try {
+    const offer = dec(document.getElementById('offerIn').value);
+    pc = new RTCPeerConnection({ iceServers: STUN });
+
+    pc.ontrack = (e)=>{
+      document.getElementById('remoteVideo').srcObject = e.streams[0];
+    };
+    pc.oniceconnectionstatechange = ()=>{
+      const st = pc.iceConnectionState;
+      if (st === 'connected' || st === 'completed')
+        setStatus('watchStatus', '✅ Соединение установлено! Вы видите друга.', 'ok');
+      else if (st === 'failed' || st === 'disconnected')
+        setStatus('watchStatus', '⚠️ Соединение прервано.', 'wait');
+    };
+
+    await pc.setRemoteDescription(offer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIceComplete(pc);
+
+    document.getElementById('answerOut').value = enc(pc.localDescription);
+    show('answerBlock'); show('answerOut'); show('copyAnswerBtn');
+    setStatus('watchStatus', '⏳ Отправьте код ответа другу и ждите подключения...', 'wait');
+    document.getElementById('menu').style.display = 'none';
+    show('watcher');
+  } catch(e){ alert('Неверный код: ' + e.message); }
+}
+</script>
+</body>
+</html>
