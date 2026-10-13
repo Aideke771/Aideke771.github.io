@@ -48,14 +48,13 @@ label.chk input{width:auto;letter-spacing:0}
   <label class="chk"><input type="checkbox" id="forceRelay" /> Только через релей (если сеть блокирует P2P)</label>
 </div>
 
-<!-- ПОКАЗЫВАЮЩИЙ -->
+<!-- ПОКАЗЫВАЮЩИЙ: минимальный экран, ничего лишнего -->
 <div class="card hidden" id="camCard">
-  <div class="sub" style="text-align:center;margin:0">Зрителю достаточно нажать «Смотреть трансляцию»</div>
   <div class="status" id="camStatus">Инициализация…</div>
   <div class="rec" id="recInd"><span class="dot"></span> В ЭФИРЕ — не закрывайте вкладку</div>
-  <video id="localVideo" autoplay playsinline muted></video>
+  <video id="localVideo" autoplay playsinline muted style="display:none"></video>
   <div class="meta" id="camMeta"></div>
-  <button class="danger" id="btnStopCam">⏹ Завершить трансляцию</button>
+  <button class="danger" id="btnStopCam">⏹ Завершить</button>
 </div>
 
 <!-- ЗРИТЕЛЬ -->
