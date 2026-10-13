@@ -37,14 +37,15 @@ label.chk input{width:auto;letter-spacing:0}
 </head>
 <body>
 <h1>📡 Camera Link</h1>
-<div class="sub">Прямая видеосвязь — без кодов, одна кнопка</div>
+<div class="sub">Прямая видеосвязь без кодов — по ссылке</div>
 
-<!-- ВЫБОР РОЛИ -->
+<!-- СТАРТОВАЯ СТРАНИЦА: ДВЕ ССЫЛКИ -->
 <div class="card" id="roleCard">
-  <button id="btnCam">📷 Показывать камеру</button>
-  <button id="btnWatch" class="secondary">👁 Смотреть трансляцию</button>
+  <div class="sub" style="margin:0 0 8px">Разошлите ссылки один раз — больше ничего выбирать не нужно:</div>
+  <button id="copyCam">📷 Скопировать ссылку для КАМЕРЫ (смартфон друга)</button>
+  <button id="copyWatch" class="secondary">👁 Скопировать ссылку для ПРОСМОТРА (вы)</button>
+  <div class="meta" id="copyInfo">…/#cam — камера · …/#watch — просмотр</div>
   <label class="chk"><input type="checkbox" id="forceRelay" /> Только через релей (если сеть блокирует P2P)</label>
-  <div class="meta">WebRTC (P2P или TURN-релей) · сигналинг через публичный MQTT-брокер</div>
 </div>
 
 <!-- ПОКАЗЫВАЮЩИЙ -->
@@ -485,16 +486,28 @@ const Watch = {
 };
 
 /* ================= ПРИВЯЗКА UI ================= */
-$('btnCam').onclick = () => {
-  $('roleCard').classList.add('hidden');
-  $('camCard').classList.remove('hidden');
-  Cam.start();
-};
-$('btnWatch').onclick = () => {
-  $('roleCard').classList.add('hidden');
-  $('watchCard').classList.remove('hidden');
-  Watch.start(ROOM);   // без кода: сразу ищем показывающего
-};
+function startCam(){ $('roleCard').classList.add('hidden'); $('camCard').classList.remove('hidden'); Cam.start(); }
+function startWatch(){ $('roleCard').classList.add('hidden'); $('watchCard').classList.remove('hidden'); Watch.start(ROOM); }
+
+function copyLink(hash, btn){
+  const url = location.origin + location.pathname + hash;
+  const done = () => { const t = btn.textContent; btn.textContent = '✅ Скопировано: ' + url; setTimeout(() => btn.textContent = t, 2500); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(() => { prompt('Скопируйте ссылку:', url); });
+  }else{
+    prompt('Скопируйте ссылку:', url);
+  }
+}
+$('copyCam').onclick   = () => copyLink('#cam',   $('copyCam'));
+$('copyWatch').onclick = () => copyLink('#watch', $('copyWatch'));
+
+// Автозапуск роли по ссылке: #cam — камера, #watch — просмотр
+if(location.hash === '#cam')        startCam();
+else if(location.hash === '#watch') startWatch();
+
+// Wake Lock без жеста может быть запрещён — повторяем при первом касании
+window.addEventListener('pointerdown', holdWakeLock, { once: true });
+
 $('btnSound').onclick = () => {
   const v = $('remoteVideo');
   v.muted = false;
