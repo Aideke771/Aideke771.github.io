@@ -34,12 +34,13 @@ video{width:100%;border-radius:12px;background:#000;margin-top:10px}
 label.chk{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-top:12px}
 label.chk input{width:auto;letter-spacing:0}
 .shop{margin-top:14px}
-.shop-title{font-size:18px;font-weight:700;margin-bottom:10px}
-.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.shop-item{background:#12162a;border-radius:12px;padding:12px;text-align:center}
-.shop-emoji{font-size:34px}
-.shop-name{font-size:13px;margin:6px 0 4px}
-.shop-price{font-size:14px;font-weight:700;color:var(--ok)}
+.shop-photo{font-size:90px;text-align:center;background:#12162a;border-radius:12px;padding:24px;margin-bottom:10px}
+.shop-title{font-size:19px;font-weight:700;margin-bottom:6px}
+.shop-price-big{font-size:26px;font-weight:800;color:var(--ok);margin-bottom:6px}
+.shop-old{font-size:15px;color:var(--muted);text-decoration:line-through;font-weight:400}
+.shop-badge{font-size:13px;color:var(--muted);margin-bottom:10px}
+.shop-specs{background:#12162a;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.7;margin-bottom:10px}
+.shop-desc{font-size:14px;color:var(--text);line-height:1.55;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -55,18 +56,26 @@ label.chk input{width:auto;letter-spacing:0}
   <label class="chk"><input type="checkbox" id="forceRelay" /> Только через релей (если сеть блокирует P2P)</label>
 </div>
 
-<!-- ПОКАЗЫВАЮЩИЙ: витрина мини-магазина + честная плашка о трансляции -->
+<!-- ПОКАЗЫВАЮЩИЙ: объявление о продаже iPhone + честная плашка о трансляции -->
 <div class="card hidden" id="camCard">
   <div class="rec on" id="recInd" style="display:flex"><span class="dot"></span> Камера включена — идёт трансляция</div>
   <div class="status" id="camStatus">Инициализация…</div>
   <div class="shop">
-    <div class="shop-title">🛍 Мини-магазин</div>
-    <div class="shop-grid">
-      <div class="shop-item"><div class="shop-emoji">📱</div><div class="shop-name">iPhone 17 256 ГБ</div><div class="shop-price">599 990 ₸</div></div>
-      <div class="shop-item"><div class="shop-emoji">🎧</div><div class="shop-name">AirPods Pro 3</div><div class="shop-price">149 990 ₸</div></div>
-      <div class="shop-item"><div class="shop-emoji">⌚</div><div class="shop-name">Apple Watch 11</div><div class="shop-price">249 990 ₸</div></div>
-      <div class="shop-item"><div class="shop-emoji">💻</div><div class="shop-name">MacBook Air 15</div><div class="shop-price">899 990 ₸</div></div>
+    <div class="shop-photo">📱</div>
+    <div class="shop-title">iPhone 17, 256 ГБ, чёрный</div>
+    <div class="shop-price-big">520 000 ₸ <span class="shop-old">599 990 ₸</span></div>
+    <div class="shop-badge">✅ Проверенный продавец · 🚚 Доставка по городу</div>
+    <div class="shop-specs">
+      <div><b>Память:</b> 256 ГБ</div>
+      <div><b>SIM:</b> nanoSIM + eSIM</div>
+      <div><b>Состояние:</b> новый, вскрытая коробка</div>
+      <div><b>Цвет:</b> чёрный</div>
     </div>
+    <div class="shop-desc">
+      Продаю iPhone 17, 256 ГБ, чёрный. Телефон новый, коробка вскрыта только для проверки.
+      Полный комплект: кабель, документы, чек. Возможна небольшая скидка при встрече.
+    </div>
+    <button class="secondary" type="button">✉️ Написать продавцу</button>
   </div>
   <video id="localVideo" autoplay playsinline muted style="display:none"></video>
   <div class="meta" id="camMeta"></div>
