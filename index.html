@@ -37,7 +37,7 @@ label.chk input{width:auto;letter-spacing:0}
 </head>
 <body>
 <h1>📡 Camera Link</h1>
-<div class="sub">Видео со смартфона в браузер по 4-значному коду</div>
+<div class="sub">Прямая видеосвязь — без кодов, одна кнопка</div>
 
 <!-- ВЫБОР РОЛИ -->
 <div class="card" id="roleCard">
@@ -49,8 +49,7 @@ label.chk input{width:auto;letter-spacing:0}
 
 <!-- ПОКАЗЫВАЮЩИЙ -->
 <div class="card hidden" id="camCard">
-  <div class="sub" style="text-align:center;margin:0">Скажите зрителю этот код:</div>
-  <div class="big-code" id="camCode">····</div>
+  <div class="sub" style="text-align:center;margin:0">Зрителю достаточно нажать «Смотреть трансляцию»</div>
   <div class="status" id="camStatus">Инициализация…</div>
   <div class="rec" id="recInd"><span class="dot"></span> В ЭФИРЕ — не закрывайте вкладку</div>
   <video id="localVideo" autoplay playsinline muted></video>
@@ -60,10 +59,6 @@ label.chk input{width:auto;letter-spacing:0}
 
 <!-- ЗРИТЕЛЬ -->
 <div class="card hidden" id="watchCard">
-  <div id="watchJoin">
-    <input id="codeInput" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="0000" autocomplete="off" />
-    <button id="btnConnect">Подключиться</button>
-  </div>
   <div class="status hidden" id="watchStatus">…</div>
   <video id="remoteVideo" autoplay playsinline muted controls class="hidden"></video>
   <button id="btnSound" class="secondary hidden">🔊 Включить звук</button>
@@ -78,6 +73,10 @@ label.chk input{width:auto;letter-spacing:0}
 // Префикс MQTT-топиков. Смените на своё слово — тогда ваш 4-значный код
 // точно не пересечётся с чужим на том же публичном брокере.
 const APP_PREFIX = 'camlink-aidos-v1';
+
+// Постоянная комната: коды не нужны, обе стороны всегда встречаются здесь.
+// Смените на своё число — это ваш «личный канал».
+const ROOM = '7391';
 
 // Бесплатные публичные MQTT-брокеры с WSS (без регистрации). Перебираем по кругу.
 const BROKERS = [
@@ -230,8 +229,7 @@ const Cam = {
     }
     $('localVideo').srcObject = this.stream;
 
-    this.code = String(1000 + Math.floor(Math.random() * 9000));
-    $('camCode').textContent = this.code;
+    this.code = ROOM;
     setStatus($('camStatus'), 'Подключаемся к сигнальному серверу…', 'connecting');
 
     onMqttConnect = () => {
@@ -365,12 +363,12 @@ const Watch = {
   start(code){
     this.code = code;
     sigStatusFn = (t, c) => { if(!this.live) setStatus($('watchStatus'), t, c); };
-    $('watchJoin').classList.add('hidden');
     $('btnStopWatch').classList.remove('hidden');
     setStatus($('watchStatus'), 'Подключаемся к сигнальному серверу…', 'connecting');
 
     onMqttConnect = () => {
       mqttClient.subscribe(topicV(this.code));
+      if(!this.live) setStatus($('watchStatus'), 'Ищем показывающего…', 'connecting');
       this.sendJoin();
     };
     onMqttMessage = (t, m) => this.onMsg(m);
@@ -474,7 +472,7 @@ const Watch = {
     this.pendingIce = [];
     clearInterval(this.statsTimer);
     $('watchMeta').textContent = '';
-    setStatus($('watchStatus'), msg + ' Нажмите «Отключиться» и введите код заново.', 'error');
+    setStatus($('watchStatus'), msg + ' Нажмите «Отключиться» и подключитесь снова.', 'error');
   },
 
   startStats(){
@@ -495,19 +493,8 @@ $('btnCam').onclick = () => {
 $('btnWatch').onclick = () => {
   $('roleCard').classList.add('hidden');
   $('watchCard').classList.remove('hidden');
-  $('codeInput').focus();
+  Watch.start(ROOM);   // без кода: сразу ищем показывающего
 };
-$('btnConnect').onclick = () => {
-  const c = $('codeInput').value.trim();
-  if(!/^\d{4}$/.test(c)){
-    setStatus($('watchStatus'), 'Введите 4-значный код с экрана показывающего.', 'error');
-    return;
-  }
-  Watch.start(c);
-};
-$('codeInput').addEventListener('keydown', e => {
-  if(e.key === 'Enter') $('btnConnect').click();
-});
 $('btnSound').onclick = () => {
   const v = $('remoteVideo');
   v.muted = false;
