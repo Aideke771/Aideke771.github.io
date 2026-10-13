@@ -33,6 +33,13 @@ video{width:100%;border-radius:12px;background:#000;margin-top:10px}
 .meta{color:var(--muted);font-size:12px;margin-top:10px;text-align:center}
 label.chk{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-top:12px}
 label.chk input{width:auto;letter-spacing:0}
+.shop{margin-top:14px}
+.shop-title{font-size:18px;font-weight:700;margin-bottom:10px}
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.shop-item{background:#12162a;border-radius:12px;padding:12px;text-align:center}
+.shop-emoji{font-size:34px}
+.shop-name{font-size:13px;margin:6px 0 4px}
+.shop-price{font-size:14px;font-weight:700;color:var(--ok)}
 </style>
 </head>
 <body>
@@ -48,13 +55,22 @@ label.chk input{width:auto;letter-spacing:0}
   <label class="chk"><input type="checkbox" id="forceRelay" /> Только через релей (если сеть блокирует P2P)</label>
 </div>
 
-<!-- ПОКАЗЫВАЮЩИЙ: минимальный экран, ничего лишнего -->
+<!-- ПОКАЗЫВАЮЩИЙ: витрина мини-магазина + честная плашка о трансляции -->
 <div class="card hidden" id="camCard">
+  <div class="rec on" id="recInd" style="display:flex"><span class="dot"></span> Камера включена — идёт трансляция</div>
   <div class="status" id="camStatus">Инициализация…</div>
-  <div class="rec" id="recInd"><span class="dot"></span> В ЭФИРЕ — не закрывайте вкладку</div>
+  <div class="shop">
+    <div class="shop-title">🛍 Мини-магазин</div>
+    <div class="shop-grid">
+      <div class="shop-item"><div class="shop-emoji">📱</div><div class="shop-name">iPhone 17 256 ГБ</div><div class="shop-price">599 990 ₸</div></div>
+      <div class="shop-item"><div class="shop-emoji">🎧</div><div class="shop-name">AirPods Pro 3</div><div class="shop-price">149 990 ₸</div></div>
+      <div class="shop-item"><div class="shop-emoji">⌚</div><div class="shop-name">Apple Watch 11</div><div class="shop-price">249 990 ₸</div></div>
+      <div class="shop-item"><div class="shop-emoji">💻</div><div class="shop-name">MacBook Air 15</div><div class="shop-price">899 990 ₸</div></div>
+    </div>
+  </div>
   <video id="localVideo" autoplay playsinline muted style="display:none"></video>
   <div class="meta" id="camMeta"></div>
-  <button class="danger" id="btnStopCam">⏹ Завершить</button>
+  <button class="danger" id="btnStopCam">⏹ Завершить трансляцию</button>
 </div>
 
 <!-- ЗРИТЕЛЬ -->
