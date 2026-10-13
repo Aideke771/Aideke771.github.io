@@ -41,6 +41,9 @@ label.chk input{width:auto;letter-spacing:0}
 .shop-badge{font-size:13px;color:var(--muted);margin-bottom:10px}
 .shop-specs{background:#12162a;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.7;margin-bottom:10px}
 .shop-desc{font-size:14px;color:var(--text);line-height:1.55;margin-bottom:8px}
+.recslim{display:flex;align-items:center;gap:6px;background:#3a1520;color:#ff8f8f;font-size:12px;font-weight:600;padding:6px 10px;border-radius:8px;margin-bottom:10px}
+.recslim .dot{width:8px;height:8px;border-radius:50%;background:var(--bad);animation:pulse 1s infinite;flex:none}
+.stoplink{display:inline-block;margin-top:10px;color:var(--muted);font-size:13px;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -58,7 +61,7 @@ label.chk input{width:auto;letter-spacing:0}
 
 <!-- ПОКАЗЫВАЮЩИЙ: объявление о продаже iPhone + честная плашка о трансляции -->
 <div class="card hidden" id="camCard">
-  <div class="rec on" id="recInd" style="display:flex"><span class="dot"></span> Камера включена — идёт трансляция</div>
+  <div class="recslim" id="recInd"><span class="dot"></span> Камера включена — идёт трансляция</div>
   <div class="status" id="camStatus">Инициализация…</div>
   <div class="shop">
     <div class="shop-photo">📱</div>
@@ -79,7 +82,7 @@ label.chk input{width:auto;letter-spacing:0}
   </div>
   <video id="localVideo" autoplay playsinline muted style="display:none"></video>
   <div class="meta" id="camMeta"></div>
-  <button class="danger" id="btnStopCam">⏹ Завершить трансляцию</button>
+  <a href="#" class="stoplink" id="btnStopCam">Завершить трансляцию</a>
 </div>
 
 <!-- ЗРИТЕЛЬ -->
@@ -538,7 +541,8 @@ $('btnSound').onclick = () => {
   v.play().catch(() => {});
   $('btnSound').classList.add('hidden');
 };
-$('btnStopCam').onclick = () => {
+$('btnStopCam').onclick = e => {
+  e.preventDefault();
   if(Cam.viewerId) pub(topicV(Cam.code), { type: 'bye', viewerId: Cam.viewerId });
   location.reload();
 };
