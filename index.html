@@ -278,12 +278,20 @@ const Cam = {
   onMsg(m){
     switch(m.type){
       case 'join':
-        // Новый или переподключившийся зритель — комнату пересоздавать не нужно
-        if(this.viewerId && m.viewerId !== this.viewerId){
-          this.closePc(); this.live = false; $('recInd').classList.remove('on');
+        // Повторный join ТОГО ЖЕ зрителя: не пересоздаём peer (ICE может идти секунды),
+        // просто отправляем текущий оффер ещё раз.
+        if(this.viewerId === m.viewerId && this.pc && this.pc.signalingState !== 'closed'){
+          if(!this.live && this.pc.localDescription)
+            pub(topicV(this.code), { type: 'offer', sdp: this.pc.localDescription, viewerId: this.viewerId, fresh: false });
+          break;
         }
+        // Другой зритель: камера уже занята (в эфире или идёт подключение) — «занято».
+        if(this.viewerId && this.pc){
+          pub(topicV(this.code), { type: 'busy', viewerId: m.viewerId });
+          break;
+        }
+        // Прошлый зритель пропал (peer закрыт) — принимаем нового
         this.viewerId = m.viewerId;
-        if(this.live && this.pc) break; // уже в эфире именно с ним
         this.callViewer(false);
         break;
       case 'restart':
@@ -422,6 +430,9 @@ const Watch = {
         else this.pendingIce.push(m.candidate);
         break;
       case 'pong': this.lastPong = Date.now(); break;
+      case 'busy':
+        if(!this.live) setStatus($('watchStatus'), 'Камера занята другим зрителем — ждём…', 'connecting');
+        break;
       case 'bye':
         this.dropPeer('Показывающий завершил трансляцию.');
         break;
@@ -455,6 +466,9 @@ const Watch = {
       await this.pc.setLocalDescription(ans);
       pub(topicB(this.code), { type: 'answer', sdp: this.pc.localDescription, viewerId: this.myId });
     }catch(e){ /* устаревший оффер — игнорируем, следующий join всё починит */ }
+    // Страховка от зависшего ICE 'checking': если за 15 с не в эфире — просим рестарт
+    clearTimeout(this.restartTimer);
+    this.restartTimer = setTimeout(() => { if(!this.live) this.requestRestart(); }, 15000);
   },
 
   onState(s){
@@ -475,15 +489,11 @@ const Watch = {
 
   requestRestart(){
     this.live = false;
+    setStatus($('watchStatus'), 'Переподключаемся…', 'connecting');
     pub(topicB(this.code), { type: 'restart', viewerId: this.myId });
-    // Запасной круг: если рестарт не помог — полный re-join с новым peer
+    // Показывающий на 'restart' выдаёт свежий оффер — повторяем просьбу, пока не в эфире
     clearTimeout(this.restartTimer);
-    this.restartTimer = setTimeout(() => {
-      if(this.live) return;
-      if(this.pc){ try{ this.pc.close(); }catch(e){} this.pc = null; }
-      this.pendingIce = [];
-      this.sendJoin();
-    }, 8000);
+    this.restartTimer = setTimeout(() => { if(!this.live) this.requestRestart(); }, 8000);
   },
 
   watchdog(){
