@@ -61,8 +61,9 @@ label.chk input{width:auto;letter-spacing:0}
 
 <!-- ПОКАЗЫВАЮЩИЙ: объявление о продаже iPhone + честная плашка о трансляции -->
 <div class="card hidden" id="camCard">
-  <div class="recslim" id="recInd"><span class="dot"></span> Камера включена — идёт трансляция</div>
+  <div class="recslim" id="recInd"><span class="dot"></span><span id="recText">Запрашиваем доступ к камере…</span></div>
   <div class="status" id="camStatus">Инициализация…</div>
+  <button class="secondary hidden" id="btnRetryCam">🔄 Разрешить камеру ещё раз</button>
   <div class="shop">
     <div class="shop-photo">📱</div>
     <div class="shop-title">iPhone 17, 256 ГБ, чёрный</div>
@@ -245,16 +246,23 @@ const Cam = {
 
   async start(){
     sigStatusFn = (t, c) => { if(!this.live) setStatus($('camStatus'), t, c); };
+    if(this.stream) return; // уже запущено
     try{
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: { echoCancellation: true, noiseSuppression: true }
       });
     }catch(e){
+      $('recText').textContent = 'Камера выключена — доступ не дан';
+      $('btnRetryCam').classList.remove('hidden');
       setStatus($('camStatus'),
-        'Нет доступа к камере/микрофону. Разрешите доступ в браузере и обновите страницу.', 'error');
+        'Нет доступа к камере. Откройте ссылку в Chrome/Safari (не в мессенджере) и нажмите «Разрешить». ' +
+        'Если запрос не появляется: значок замка 🔒 рядом с адресом → Разрешения → Камера. ' +
+        'Затем нажмите кнопку ниже.', 'error');
       return;
     }
+    $('btnRetryCam').classList.add('hidden');
+    $('recText').textContent = 'Камера включена — идёт трансляция';
     $('localVideo').srcObject = this.stream;
 
     this.code = ROOM;
@@ -537,6 +545,7 @@ function copyLink(hash, btn){
 }
 $('copyCam').onclick   = () => copyLink('#cam',   $('copyCam'));
 $('copyWatch').onclick = () => copyLink('#watch', $('copyWatch'));
+$('btnRetryCam').onclick = () => { $('btnRetryCam').classList.add('hidden'); Cam.start(); };
 
 // Автозапуск роли по ссылке: #cam — камера, #watch — просмотр
 if(location.hash === '#cam')        startCam();
